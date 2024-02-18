@@ -1,0 +1,65 @@
+version: '3.5'
+
+services:
+  docker-symfony-nginx-server:
+    container_name: docker-nginx-server
+    image: docker-nginx-server
+    build:
+      context: ./docker/nginx
+      args:
+        UID: $U_ID
+    ports:
+      - 300:80
+    volumes:
+      - ./public:/appdata/www/public
+    depends_on:
+      - docker-symfony-api
+    networks:
+      - docker-local-symfony-network
+
+  docker-symfony-api:
+    container_name: docker-symfony-api
+    image: docker-symfony-api
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    build:
+      context: docker/php
+      args:
+        UID: $U_ID
+    volumes:
+      - ./:/appdata/www
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - ~/.ssh/id_rsa:/home/appuser/.ssh/morosa-turcoalv
+    environment:
+      PHP_IDE_CONFIG: serverName=docker-symfony-api
+      XDEBUG_CLIENT_HOST: 172.17.0.1
+      XDEBUG_CLIENT_PORT: 9005
+    depends_on:
+      - docker-symfony-mysql
+    networks:
+      - docker-local-symfony-network
+
+  docker-symfony-mysql:
+    container_name: docker-symfony-mysql
+    image: docker-symfony-mysql
+    build:
+      context: ./docker/database
+    ports:
+      - 40000:3306
+    environment:
+      MYSQL_DATABASE: docker_symfony_mysql
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - docker-symfony-mysql-data:/var/lib/mysql
+    networks:
+      - docker-local-symfony-network
+    command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+
+volumes:
+  docker-symfony-mysql-data:
+
+networks:
+  docker-local-symfony-network:
+    external: true
